@@ -11,7 +11,7 @@ function isMobileDevice(userAgent) {
   return mobileRegex.test(userAgent);
 }
 
-// 图片重定向处理
+// 图片重定向
 function redirect(Url) {
   return new Response(null, {
     status: 302,
@@ -23,7 +23,6 @@ function redirect(Url) {
   });
 }
 
-// 生成随机数
 function generateRandomNumber(max) {
   return Math.floor(Math.random() * max) + 1;
 }
@@ -49,7 +48,6 @@ async function handleRequest(context) {
     );
     const data = await res.json();
 
-    // 取出统计结果
     const maxHorizontalImageNumber = data.folders[`${context.params.id}/h`] ?? 0;
     const maxVerticalImageNumber = data.folders[`${context.params.id}/v`] ?? 0;
 

@@ -1,4 +1,3 @@
-// scripts/build-posts-meta.js
 import fs from 'fs';
 import path from 'path';
 
@@ -31,7 +30,6 @@ function scanDir(dir, result) {
   return count;
 }
 
-// ===== 执行 =====
 const folders = {};
 const total = scanDir(POSTS_DIR, folders);
 

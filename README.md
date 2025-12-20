@@ -4,11 +4,10 @@
 
 ## ✨ 功能特性
 
-* **多图库支持**：通过 URL 路径区分不同的图片集合（如 `id`）。
-* **动态配置**：通过 `posts-meta.json` 自动读取各分类下的图片数量，无需修改代码。
+* **多图库支持**：通过 URL 路径区分不同的图片集合。
+* **动态配置**：通过生成 `posts-meta.json` 自动读取各分类下的图片数量。
 * **智能适配** (`?img=auto`)：自动识别移动端或桌面端 User-Agent，返回合适的竖屏或横屏图片。
 * **访问统计**：利用 EdgeOne KV 存储记录 API 调用次数。
-* **极致性能**：基于 EdgeOne 边缘节点，低延迟响应。
 
 ## 🚀 使用方法
 
@@ -16,7 +15,6 @@
 
 ```text
 https://example.com/api/{id}?img={type}
-
 ```
 
 * **{id}**: 图库分类 ID (对应 `pictures/` 下的文件夹名)。
@@ -54,15 +52,12 @@ https://example.com/api/{id}?img={type}
 
 1. 登录腾讯云 EdgeOne 控制台，进入 Pages 服务。
 2. 创建一个新的 Pages 项目并关联你的仓库。
-3. **重要：配置 KV 存储**
-* 在 EdgeOne 控制台创建一个 KV 命名空间（Namespace）。
-* 在 Pages 项目的 **设置 (Settings) -> 函数 (Functions) -> KV 命名空间绑定** 中：
-* 将代码中的变量名 `my_kv` 绑定到你创建的 Namespace。
-* *如果不绑定 KV，API 将在统计访问量时报错。*
+3. 在 EdgeOne 控制台创建一个 KV 命名空间。并在 Pages 项目中绑定，变量名为 `my_kv` 。
+4. 进入 KV 新建键为 `visitCount` 值为 `0` 的记录。
 
 ## 🤝 贡献
 
-欢迎提交 Pull Requests 来改进代码或增加新功能（例如支持多种图片后缀支持）。
+欢迎提交 Pull Requests 来改进代码或增加新功能。
 
 ## 🎁 鸣谢
 
