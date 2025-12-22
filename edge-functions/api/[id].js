@@ -28,12 +28,17 @@ function generateRandomNumber(max) {
 }
 
 // 增加访问计数
-async function incrementCount() {
-  const visitCount = await my_kv.get('visitCount');
-  let visitCountInt = Number(visitCount);
-  visitCountInt += 1;
-  await my_kv.put('visitCount', visitCountInt.toString());
-  return visitCountInt;
+async function incrementCount(env) {
+  try {
+    const visitCount = await env.my_kv.get('visitCount');
+    let visitCountInt = Number(visitCount) || 0;
+    visitCountInt += 1;
+    await env.my_kv.put('visitCount', visitCountInt.toString());
+    return visitCountInt;
+  } catch (error) {
+    console.warn('Failed to increment visit count:', error);
+    return 0; // 失败时返回默认值
+  }
 }
 
 // 处理请求
@@ -43,30 +48,142 @@ async function handleRequest(context) {
   try {
     const url = new URL(context.request.url);
     const imgType = url.searchParams.get('img');
-    const res = await fetch(
-      new URL('./posts-meta.json', url.origin)
-    );
-    const data = await res.json();
+    const categoryId = context.params.id;
 
-    const maxHorizontalImageNumber = data.folders[`${context.params.id}/h`] ?? 0;
-    const maxVerticalImageNumber = data.folders[`${context.params.id}/v`] ?? 0;
+    // 验证分类ID
+    if (!categoryId || typeof categoryId !== 'string') {
+      return new Response(
+        JSON.stringify({ error: "Invalid category ID" }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // 获取图片元数据
+    let data;
+    try {
+      const res = await fetch(
+        new URL('/posts-meta.json', url.origin)
+      );
+      if (!res.ok) {
+        throw new Error(`Failed to fetch posts-meta.json: ${res.status}`);
+      }
+      data = await res.json();
+    } catch (fetchError) {
+      console.error('Failed to load metadata:', fetchError);
+      return new Response(
+        JSON.stringify({ 
+          error: "Configuration not available",
+          message: "Unable to load image metadata"
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    const maxHorizontalImageNumber = data.folders[`${categoryId}/h`] ?? 0;
+    const maxVerticalImageNumber = data.folders[`${categoryId}/v`] ?? 0;
+
+    // 验证图片数量
+    if (maxHorizontalImageNumber === 0 && maxVerticalImageNumber === 0) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Category not found",
+          message: `No images found for category: ${categoryId}`
+        }),
+        {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
 
     switch (imgType) {
       case 'h':
-        await incrementCount();
-        return redirect(`/pictures/${context.params.id}/h/${generateRandomNumber(maxHorizontalImageNumber)}.webp`);
+        if (maxHorizontalImageNumber === 0) {
+          return new Response(
+            JSON.stringify({ 
+              error: "No horizontal images available",
+              message: `Category ${categoryId} has no horizontal images`
+            }),
+            {
+              status: 404,
+              headers: {
+                'Content-Type': 'application/json; charset=UTF-8',
+                'Access-Control-Allow-Origin': '*'
+              }
+            }
+          );
+        }
+        await incrementCount(context.env);
+        return redirect(`/pictures/${categoryId}/h/${generateRandomNumber(maxHorizontalImageNumber)}.webp`);
 
       case 'v':
-        await incrementCount();
-        return redirect(`/pictures/${context.params.id}/v/${generateRandomNumber(maxVerticalImageNumber)}.webp`);
+        if (maxVerticalImageNumber === 0) {
+          return new Response(
+            JSON.stringify({ 
+              error: "No vertical images available", 
+              message: `Category ${categoryId} has no vertical images`
+            }),
+            {
+              status: 404,
+              headers: {
+                'Content-Type': 'application/json; charset=UTF-8',
+                'Access-Control-Allow-Origin': '*'
+              }
+            }
+          );
+        }
+        await incrementCount(context.env);
+        return redirect(`/pictures/${categoryId}/v/${generateRandomNumber(maxVerticalImageNumber)}.webp`);
 
       case 'auto':
-        await incrementCount();
         const isMobile = isMobileDevice(userAgent);
-        const randomImage = isMobile 
-          ? generateRandomNumber(maxVerticalImageNumber)
-          : generateRandomNumber(maxHorizontalImageNumber);
-        const imageUrl = isMobile ? `/pictures/${context.params.id}/v/${randomImage}.webp` : `/pictures/${context.params.id}/h/${randomImage}.webp`;
+        const targetCount = isMobile ? maxVerticalImageNumber : maxHorizontalImageNumber;
+        const targetType = isMobile ? 'v' : 'h';
+        
+        if (targetCount === 0) {
+          // 如果首选方向没有图片，尝试另一个方向
+          const fallbackCount = isMobile ? maxHorizontalImageNumber : maxVerticalImageNumber;
+          const fallbackType = isMobile ? 'h' : 'v';
+          
+          if (fallbackCount === 0) {
+            return new Response(
+              JSON.stringify({ 
+                error: "No images available",
+                message: `Category ${categoryId} has no images`
+              }),
+              {
+                status: 404,
+                headers: {
+                  'Content-Type': 'application/json; charset=UTF-8',
+                  'Access-Control-Allow-Origin': '*'
+                }
+              }
+            );
+          }
+          
+          const fallbackImage = generateRandomNumber(fallbackCount);
+          await incrementCount(context.env);
+          return redirect(`/pictures/${categoryId}/${fallbackType}/${fallbackImage}.webp`);
+        }
+        
+        const randomImage = generateRandomNumber(targetCount);
+        await incrementCount(context.env);
+        const imageUrl = `/pictures/${categoryId}/${targetType}/${randomImage}.webp`;
         return redirect(imageUrl);
 
       default:
@@ -76,11 +193,11 @@ async function handleRequest(context) {
     }
 
   } catch (error) {
-    console.error(error);
+    console.error('API [id] error:', error);
 
     return new Response(
       JSON.stringify({
-        error: "Internal error occurred while handling the request.",
+        error: "Internal server error",
         message: error?.message || String(error)
       }),
       {
