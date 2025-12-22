@@ -44,7 +44,7 @@ async function handleRequest(context) {
     const url = new URL(context.request.url);
     const imgType = url.searchParams.get('img');
     const res = await fetch(
-      new URL('/posts-meta.json', url.origin)
+      new URL('./posts-meta.json', url.origin)
     );
     const data = await res.json();
 
