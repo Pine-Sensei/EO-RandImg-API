@@ -27,6 +27,21 @@ function generateRandomNumber(max) {
   return Math.floor(Math.random() * max) + 1;
 }
 
+function noImagesResponse(message, status = 404) {
+  return new Response(
+    JSON.stringify({
+      error: message
+    }),
+    {
+      status,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Access-Control-Allow-Origin': '*'
+      }
+    }
+  );
+}
+
 // 增加访问计数
 async function incrementCount() {
   const visitCount = await my_kv.get('visitCount');
@@ -53,20 +68,30 @@ async function handleRequest(context) {
 
     switch (imgType) {
       case 'h':
+        if (maxHorizontalImageNumber <= 0) {
+          return noImagesResponse('No horizontal images available for this id.', 404);
+        }
         await incrementCount();
         return redirect(`/pictures/${context.params.id}/h/${generateRandomNumber(maxHorizontalImageNumber)}.webp`);
 
       case 'v':
+        if (maxVerticalImageNumber <= 0) {
+          return noImagesResponse('No vertical images available for this id.', 404);
+        }
         await incrementCount();
         return redirect(`/pictures/${context.params.id}/v/${generateRandomNumber(maxVerticalImageNumber)}.webp`);
 
       case 'auto':
         await incrementCount();
         const isMobile = isMobileDevice(userAgent);
-        const randomImage = isMobile 
-          ? generateRandomNumber(maxVerticalImageNumber)
-          : generateRandomNumber(maxHorizontalImageNumber);
-        const imageUrl = isMobile ? `/pictures/${context.params.id}/v/${randomImage}.webp` : `/pictures/${context.params.id}/h/${randomImage}.webp`;
+        const maxAutoImageNumber = isMobile ? maxVerticalImageNumber : maxHorizontalImageNumber;
+        if (maxAutoImageNumber <= 0) {
+          return noImagesResponse('No images available for this id and device type.', 404);
+        }
+        const randomImage = generateRandomNumber(maxAutoImageNumber);
+        const imageUrl = isMobile
+          ? `/pictures/${context.params.id}/v/${randomImage}.webp`
+          : `/pictures/${context.params.id}/h/${randomImage}.webp`;
         return redirect(imageUrl);
 
       default:
