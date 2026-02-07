@@ -5,7 +5,8 @@ export function onRequest(context) {
 
 async function handleRequest(context) {
   const url = new URL(context.request.url);
-  const visitCount = Number(await my_kv.get('visitCount'));
+  const raw = await my_kv.get('visitCount');
+  const visitCount = Number.isFinite(Number(raw)) ? Number(raw) : 0;
   const res = JSON.stringify({
     visitCount: visitCount,
   });
