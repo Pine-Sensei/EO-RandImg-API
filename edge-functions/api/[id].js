@@ -46,7 +46,54 @@ async function handleRequest(context) {
     const res = await fetch(
       new URL('/posts-meta.json', url.origin)
     );
-    const data = await res.json();
+    if (!res.ok) {
+      return new Response(
+        JSON.stringify({
+          error: 'Failed to fetch posts metadata.',
+          message: `Upstream responded with status ${res.status}.`
+        }),
+        {
+          status: 502,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+    let data;
+    try {
+      data = await res.json();
+    } catch (jsonError) {
+      return new Response(
+        JSON.stringify({
+          error: 'Invalid posts metadata response.',
+          message: jsonError?.message || String(jsonError)
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+    if (!data || typeof data !== 'object' || !data.folders || typeof data.folders !== 'object') {
+      return new Response(
+        JSON.stringify({
+          error: 'Unexpected posts metadata shape.',
+          message: 'Missing folders map in metadata response.'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
 
     const maxHorizontalImageNumber = data.folders[`${context.params.id}/h`] ?? 0;
     const maxVerticalImageNumber = data.folders[`${context.params.id}/v`] ?? 0;
