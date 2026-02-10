@@ -45,10 +45,11 @@ function noImagesResponse(message, status = 404) {
 // 增加访问计数
 async function incrementCount() {
   const visitCount = await my_kv.get('visitCount');
-  let visitCountInt = Number(visitCount);
-  visitCountInt += 1;
-  await my_kv.put('visitCount', visitCountInt.toString());
-  return visitCountInt;
+  const parsedVisitCount = Number(visitCount);
+  const safeVisitCount = Number.isFinite(parsedVisitCount) ? parsedVisitCount : 0;
+  const nextVisitCount = safeVisitCount + 1;
+  await my_kv.put('visitCount', nextVisitCount.toString());
+  return nextVisitCount;
 }
 
 // 处理请求
