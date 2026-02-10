@@ -142,8 +142,19 @@ async function handleRequest(context) {
         return redirect(imageUrl);
 
       default:
-        const backurl = url.origin + '/api';
-        return redirect(backurl);
+        return new Response(
+          JSON.stringify({
+            error: 'Invalid img type.',
+            validValues: ['h', 'v', 'auto']
+          }),
+          {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Access-Control-Allow-Origin': '*'
+            }
+          }
+        );
 
     }
 
